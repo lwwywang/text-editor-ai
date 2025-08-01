@@ -13,6 +13,6 @@ export const en = {
   errorNoSelection: "Please select text to rewrite first",
   errorAIFailed: "AI rewrite failed, please try again later",
   languageSwitch: "Language",
-  english: "English",
-  chinese: "Chinese"
+  english: "EN",
+  chinese: "ZH"
 }; 

@@ -13,6 +13,6 @@ export const zh = {
   errorNoSelection: "请先选中要改写的文本",
   errorAIFailed: "AI 改写失败，请稍后重试",
   languageSwitch: "语言",
-  english: "English",
-  chinese: "中文"
+  english: "EN",
+  chinese: "ZH"
 }; 

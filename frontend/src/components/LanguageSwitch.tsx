@@ -12,14 +12,14 @@ export const LanguageSwitch: React.FC = () => {
         <Button
           onClick={() => setLanguage('en')}
           variant={language === 'en' ? 'contained' : 'outlined'}
-          className="min-w-[60px]"
+          className="px-2 py-1 text-xs"
         >
           {t('english', language)}
         </Button>
         <Button
           onClick={() => setLanguage('zh')}
           variant={language === 'zh' ? 'contained' : 'outlined'}
-          className="min-w-[60px]"
+          className="px-2 py-1 text-xs"
         >
           {t('chinese', language)}
         </Button>
