@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Container, 
   TextField, 
@@ -9,11 +9,6 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
-
-interface ApiResponse {
-  result: string;
-  issue_url: string;
-}
 
 function App() {
   const [selectedText, setSelectedText] = useState('');
@@ -39,7 +34,7 @@ function App() {
 
     try {
       // 调用 GitHub API 触发 workflow
-      const response = await fetch(`https://api.github.com/repos/hatchways-community/senior-full-stack-engineer-work-sample-865e4c8dbb7148578ba8499191e46b29/dispatches`, {
+      const response = await fetch(`https://api.github.com/repos/lwwywang/text-editor-ai/dispatches`, {
         method: 'POST',
         headers: {
           'Authorization': `token ${import.meta.env.VITE_GITHUB_TOKEN}`,
@@ -63,7 +58,7 @@ function App() {
         try {
           // 获取最新的 issue（包含结果）
           const issuesResponse = await fetch(
-            `https://api.github.com/repos/hatchways-community/senior-full-stack-engineer-work-sample-865e4c8dbb7148578ba8499191e46b29/issues?labels=api-response&state=open&per_page=1`,
+            `https://api.github.com/repos/lwwywang/text-editor-ai/issues?labels=api-response&state=open&per_page=1`,
             {
               headers: {
                 'Authorization': `token ${import.meta.env.VITE_GITHUB_TOKEN}`,
