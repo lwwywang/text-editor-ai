@@ -75,61 +75,23 @@ function AppContent() {
     setError(null);
 
     try {
-      // 使用 GitHub API 触发 repository_dispatch
-      const githubToken = import.meta.env.VITE_GITHUB_TOKEN;
-      if (!githubToken) {
-        throw new Error('GitHub token not configured');
-      }
-
-      const repoOwner = import.meta.env.VITE_GITHUB_REPO_OWNER || 'lwwywang';
-      const repoName = import.meta.env.VITE_GITHUB_REPO_NAME || 'text-editor-ai';
-
-      // 触发 GitHub Actions workflow
-      const dispatchResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
+      // 调用后端 AI API
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/rewrite`, {
         method: 'POST',
         headers: {
-          'Authorization': `token ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event_type: 'api_request',
-          client_payload: {
-            text: selectedText
-          }
+          text: selectedText
         })
       });
 
-      if (!dispatchResponse.ok) {
-        throw new Error(`GitHub API request failed: ${dispatchResponse.status}`);
+      if (!response.ok) {
+        throw new Error(`API 请求失败: ${response.status}`);
       }
 
-      // 等待一段时间让 Actions 处理完成
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // 获取最新的 API response issue
-      const issuesResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/issues?labels=api-response&state=open&per_page=1`, {
-        headers: {
-          'Authorization': `token ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-        }
-      });
-
-      if (!issuesResponse.ok) {
-        throw new Error(`Failed to fetch API response: ${issuesResponse.status}`);
-      }
-
-      const issues = await issuesResponse.json();
-      if (issues.length === 0) {
-        throw new Error('No API response found');
-      }
-
-      const latestIssue = issues[0];
-      const issueBody = latestIssue.body || '';
-      
-      // 从 issue body 中提取改写后的文本
-      const rewrittenMatch = issueBody.match(/\*\*Rewritten Text:\*\*\n([\s\S]*?)(?:\n\n|$)/);
-      const rewrittenText = rewrittenMatch ? rewrittenMatch[1].trim() : selectedText;
+      const data = await response.json();
+      const rewrittenText = data.rewritten || data.result || data.rewritten_text || selectedText;
 
       // 替换选中的文本
       const newText = text.substring(0, start) + rewrittenText + text.substring(end);
