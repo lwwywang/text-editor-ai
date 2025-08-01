@@ -87,7 +87,7 @@ function App() {
       }
 
       const data = await response.json();
-      const rewrittenText = data.result || data.rewritten_text || selectedText;
+      const rewrittenText = data.rewritten || data.result || data.rewritten_text || selectedText;
 
       // 替换选中的文本
       const newText = text.substring(0, start) + rewrittenText + text.substring(end);
