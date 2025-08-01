@@ -8,7 +8,7 @@ export const zh = {
   instructions: "使用说明",
   step1: "在文本框中输入或粘贴文本",
   step2: "选中要改写的文本段落",
-  step3: "点击"AI 改写"按钮",
+  step3: "点击\"AI 改写\"按钮",
   step4: "AI 将自动改写选中的文本",
   errorNoSelection: "请先选中要改写的文本",
   errorAIFailed: "AI 改写失败，请稍后重试",
