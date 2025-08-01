@@ -14,6 +14,9 @@ import {
 import { AutoAwesome } from '@mui/icons-material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { LanguageSwitch } from './components/LanguageSwitch';
+import { t } from './i18n';
 
 // 创建主题
 const theme = createTheme({
@@ -32,7 +35,8 @@ const theme = createTheme({
   },
 });
 
-function App() {
+function AppContent() {
+  const { language } = useLanguage();
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +67,7 @@ function App() {
     const selectedText = text.substring(start, end);
 
     if (!selectedText.trim()) {
-      setError('请先选中要改写的文本');
+      setError(t('errorNoSelection', language));
       return;
     }
 
@@ -71,23 +75,61 @@ function App() {
     setError(null);
 
     try {
-      // 调用后端 AI API
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/rewrite`, {
+      // 使用 GitHub API 触发 repository_dispatch
+      const githubToken = import.meta.env.VITE_GITHUB_TOKEN;
+      if (!githubToken) {
+        throw new Error('GitHub token not configured');
+      }
+
+      const repoOwner = import.meta.env.VITE_GITHUB_REPO_OWNER || 'lwwywang';
+      const repoName = import.meta.env.VITE_GITHUB_REPO_NAME || 'text-editor-ai';
+
+      // 触发 GitHub Actions workflow
+      const dispatchResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/dispatches`, {
         method: 'POST',
         headers: {
+          'Authorization': `token ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: selectedText
+          event_type: 'api_request',
+          client_payload: {
+            text: selectedText
+          }
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`API 请求失败: ${response.status}`);
+      if (!dispatchResponse.ok) {
+        throw new Error(`GitHub API request failed: ${dispatchResponse.status}`);
       }
 
-      const data = await response.json();
-      const rewrittenText = data.rewritten || data.result || data.rewritten_text || selectedText;
+      // 等待一段时间让 Actions 处理完成
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 获取最新的 API response issue
+      const issuesResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/issues?labels=api-response&state=open&per_page=1`, {
+        headers: {
+          'Authorization': `token ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        }
+      });
+
+      if (!issuesResponse.ok) {
+        throw new Error(`Failed to fetch API response: ${issuesResponse.status}`);
+      }
+
+      const issues = await issuesResponse.json();
+      if (issues.length === 0) {
+        throw new Error('No API response found');
+      }
+
+      const latestIssue = issues[0];
+      const issueBody = latestIssue.body || '';
+      
+      // 从 issue body 中提取改写后的文本
+      const rewrittenMatch = issueBody.match(/\*\*Rewritten Text:\*\*\n([\s\S]*?)(?:\n\n|$)/);
+      const rewrittenText = rewrittenMatch ? rewrittenMatch[1].trim() : selectedText;
 
       // 替换选中的文本
       const newText = text.substring(0, start) + rewrittenText + text.substring(end);
@@ -103,7 +145,7 @@ function App() {
 
     } catch (error) {
       console.error('AI 改写失败:', error);
-      setError('AI 改写失败，请稍后重试');
+      setError(t('errorAIFailed', language));
     } finally {
       setIsLoading(false);
     }
@@ -120,6 +162,8 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="md" className="min-h-screen py-8">
+        <LanguageSwitch />
+        
         <Box className="text-center mb-8">
           <Typography
             variant="h4"
@@ -127,14 +171,14 @@ function App() {
             className="mb-2 text-gray-800"
             gutterBottom
           >
-            AI 文本编辑器
+            {t('title', language)}
           </Typography>
           <Typography
             variant="body1"
             color="text.secondary"
             className="text-gray-600"
           >
-            选中文本，让 AI 帮你改写内容
+            {t('subtitle', language)}
           </Typography>
         </Box>
 
@@ -152,7 +196,7 @@ function App() {
               value={text}
               onChange={handleTextChange}
               onSelect={handleSelect}
-              placeholder="在这里输入或粘贴文本，选中要改写的部分后点击 AI 按钮..."
+              placeholder={t('placeholder', language)}
               className="font-mono"
               InputProps={{
                 className: 'text-sm leading-relaxed',
@@ -164,7 +208,7 @@ function App() {
             <Box className="flex items-center gap-2">
               {hasSelection && (
                 <Chip
-                  label={`已选中 ${selectedText.length} 个字符`}
+                  label={t('selectedChars', language, { count: selectedText.length })}
                   color="primary"
                   variant="outlined"
                   size="small"
@@ -180,7 +224,7 @@ function App() {
               startIcon={isLoading ? <CircularProgress size={20} /> : <AutoAwesome />}
               className="min-w-[140px]"
             >
-              {isLoading ? 'AI 处理中...' : 'AI 改写'}
+              {isLoading ? t('aiProcessing', language) : t('aiRewrite', language)}
             </Button>
           </Box>
         </Paper>
@@ -204,37 +248,45 @@ function App() {
             component="h2"
             className="mb-3 text-blue-800"
           >
-            使用说明
+            {t('instructions', language)}
           </Typography>
           <Stack spacing={1}>
             <Box className="flex items-start gap-2">
               <Chip label="1" size="small" color="primary" />
               <Typography variant="body2" className="text-gray-700">
-                在文本框中输入或粘贴文本
+                {t('step1', language)}
               </Typography>
             </Box>
             <Box className="flex items-start gap-2">
               <Chip label="2" size="small" color="primary" />
               <Typography variant="body2" className="text-gray-700">
-                选中要改写的文本段落
+                {t('step2', language)}
               </Typography>
             </Box>
             <Box className="flex items-start gap-2">
               <Chip label="3" size="small" color="primary" />
               <Typography variant="body2" className="text-gray-700">
-                点击"AI 改写"按钮
+                {t('step3', language)}
               </Typography>
             </Box>
             <Box className="flex items-start gap-2">
               <Chip label="4" size="small" color="primary" />
               <Typography variant="body2" className="text-gray-700">
-                AI 将自动改写选中的文本
+                {t('step4', language)}
               </Typography>
             </Box>
           </Stack>
         </Paper>
       </Container>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 
