@@ -1,0 +1,79 @@
+{
+  "hash": "bf066516",
+  "configHash": "d3896dac",
+  "lockfileHash": "d242bd38",
+  "browserHash": "e8504404",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "8bce5057",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "96555597",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "d351ad5e",
+      "needsInterop": true
+    },
+    "@mui/material": {
+      "src": "../../node_modules/@mui/material/index.js",
+      "file": "@mui_material.js",
+      "fileHash": "304483ca",
+      "needsInterop": false
+    },
+    "@mui/icons-material": {
+      "src": "../../node_modules/@mui/icons-material/esm/index.js",
+      "file": "@mui_icons-material.js",
+      "fileHash": "27d7aeb1",
+      "needsInterop": false
+    },
+    "@mui/material/styles": {
+      "src": "../../node_modules/@mui/material/styles/index.js",
+      "file": "@mui_material_styles.js",
+      "fileHash": "04134ba1",
+      "needsInterop": false
+    },
+    "@mui/material/CssBaseline": {
+      "src": "../../node_modules/@mui/material/CssBaseline/index.js",
+      "file": "@mui_material_CssBaseline.js",
+      "fileHash": "51d4f61b",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-YUNTBJI6": {
+      "file": "chunk-YUNTBJI6.js"
+    },
+    "chunk-YFAN3TRZ": {
+      "file": "chunk-YFAN3TRZ.js"
+    },
+    "chunk-SWLFXAJO": {
+      "file": "chunk-SWLFXAJO.js"
+    },
+    "chunk-YVITVXFQ": {
+      "file": "chunk-YVITVXFQ.js"
+    },
+    "chunk-P6T734LP": {
+      "file": "chunk-P6T734LP.js"
+    },
+    "chunk-565LJDLC": {
+      "file": "chunk-565LJDLC.js"
+    },
+    "chunk-V7CTDSHG": {
+      "file": "chunk-V7CTDSHG.js"
+    },
+    "chunk-TF7TQPXB": {
+      "file": "chunk-TF7TQPXB.js"
+    },
+    "chunk-45FXRYJS": {
+      "file": "chunk-45FXRYJS.js"
+    }
+  }
+}

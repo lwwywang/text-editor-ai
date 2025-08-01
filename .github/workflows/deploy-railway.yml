@@ -1,0 +1,131 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Test backend
+      working-directory: ./backend
+      run: cargo test
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+      
+    - name: Test frontend
+      working-directory: ./frontend
+      run: npm run lint
+
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Railway
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        service: text-editor-ai-backend
+    
+    - name: Get Backend URL
+      id: backend-url
+      run: |
+        # 这里需要从 Railway API 获取服务 URL
+        echo "url=https://text-editor-ai-backend-production.up.railway.app" >> $GITHUB_OUTPUT
+    
+    - name: Comment Backend URL
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🚀 Backend deployed successfully!\n\n🌐 Backend URL: ${{ steps.backend-url.outputs.url }}`
+          })
+
+  deploy-frontend:
+    needs: [test, deploy-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Get Backend URL
+      id: backend-url
+      run: |
+        echo "url=https://text-editor-ai-backend-production.up.railway.app" >> $GITHUB_OUTPUT
+    
+    - name: Update API URL
+      working-directory: ./frontend
+      run: |
+        # 更新 App.tsx 中的默认 URL
+        sed -i "s|text-editor-ai-backend-xxxxx-uc.a.run.app|${{ steps.backend-url.outputs.url }}|g" src/App.tsx
+    
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./frontend/dist
+        publish_branch: gh-pages
+        force_orphan: true
+    
+    - name: Comment Frontend URL
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const repo = context.repo;
+          const frontendUrl = `https://${repo.owner}.github.io/${repo.repo}`;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🎨 Frontend deployed successfully!\n\n🌐 Frontend URL: ${frontendUrl}\n🔗 Backend URL: ${{ steps.backend-url.outputs.url }}`
+          }) 
