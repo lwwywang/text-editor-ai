@@ -1,194 +1,240 @@
-import { useState } from 'react';
-import { 
-  Container, 
-  TextField, 
-  Button, 
-  Typography, 
-  Box, 
+import React, { useState, useRef } from 'react';
+import {
+  Container,
+  Typography,
+  TextField,
+  Button,
+  Box,
   Paper,
+  Alert,
   CircularProgress,
-  Alert
+  Chip,
+  Stack
 } from '@mui/material';
+import { AutoAwesome } from '@mui/icons-material';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+
+// 创建主题
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+  typography: {
+    h4: {
+      fontWeight: 600,
+    },
+  },
+});
 
 function App() {
-  const [selectedText, setSelectedText] = useState('');
-  const [rewrittenText, setRewrittenText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [text, setText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim()) {
-      setSelectedText(selection.toString().trim());
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    setError(null);
+  };
+
+  const handleSelect = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      setSelection({
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      });
     }
   };
 
-  const handleRewrite = async () => {
+  const handleAIClick = async () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = text.substring(start, end);
+
     if (!selectedText.trim()) {
-      setError('请先选择要改写的文本');
+      setError('请先选中要改写的文本');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setIsLoading(true);
+    setError(null);
 
     try {
-      // 调用 GitHub API 触发 workflow
-      const response = await fetch(`https://api.github.com/repos/lwwywang/text-editor-ai/dispatches`, {
+      // 调用后端 AI API
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/rewrite`, {
         method: 'POST',
         headers: {
-          'Authorization': `token ${import.meta.env.VITE_GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          event_type: 'api_request',
-          client_payload: {
-            text: selectedText
-          }
+          text: selectedText
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to trigger GitHub Action');
+        throw new Error(`API 请求失败: ${response.status}`);
       }
 
-      // 等待一段时间让 workflow 完成
-      setTimeout(async () => {
-        try {
-          // 获取最新的 issue（包含结果）
-          const issuesResponse = await fetch(
-            `https://api.github.com/repos/lwwywang/text-editor-ai/issues?labels=api-response&state=open&per_page=1`,
-            {
-              headers: {
-                'Authorization': `token ${import.meta.env.VITE_GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json',
-              }
-            }
-          );
+      const data = await response.json();
+      const rewrittenText = data.result || data.rewritten_text || selectedText;
 
-          if (issuesResponse.ok) {
-            const issues = await issuesResponse.json();
-            if (issues.length > 0) {
-              const latestIssue = issues[0];
-              const body = latestIssue.body;
-              
-              // 提取改写后的文本
-              const rewrittenMatch = body.match(/\*\*Rewritten Text:\*\*\n([\s\S]*?)(?=\n\n|$)/);
-              if (rewrittenMatch) {
-                setRewrittenText(rewrittenMatch[1].trim());
-              } else {
-                setError('无法解析响应结果');
-              }
-            } else {
-              setError('未找到处理结果');
-            }
-          } else {
-            setError('无法获取处理结果');
-          }
-        } catch (err) {
-          setError('获取结果时出错');
-        } finally {
-          setLoading(false);
+      // 替换选中的文本
+      const newText = text.substring(0, start) + rewrittenText + text.substring(end);
+      setText(newText);
+
+      // 重新设置光标位置
+      setTimeout(() => {
+        if (textarea) {
+          textarea.focus();
+          textarea.setSelectionRange(start, start + rewrittenText.length);
         }
-      }, 10000); // 等待 10 秒
+      }, 0);
 
-    } catch (err) {
-      setError('请求失败，请稍后重试');
-      setLoading(false);
+    } catch (error) {
+      console.error('AI 改写失败:', error);
+      setError('AI 改写失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleClear = () => {
-    setSelectedText('');
-    setRewrittenText('');
-    setError('');
+  const getSelectedText = () => {
+    return text.substring(selection.start, selection.end);
   };
 
+  const selectedText = getSelectedText();
+  const hasSelection = selectedText.trim().length > 0;
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h3" component="h1" gutterBottom align="center">
-        AI 文本编辑器
-      </Typography>
-      
-      <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
-        选中文本，点击改写按钮，AI 将为你重新表达
-      </Typography>
-
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          编辑区域
-        </Typography>
-        <TextField
-          fullWidth
-          multiline
-          rows={6}
-          variant="outlined"
-          placeholder="在这里输入或粘贴文本，然后选中要改写的部分..."
-          value={selectedText}
-          onChange={(e) => setSelectedText(e.target.value)}
-          onSelect={handleTextSelection}
-          sx={{ mb: 2 }}
-        />
-        
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            onClick={handleRewrite}
-            disabled={loading || !selectedText.trim()}
-            startIcon={loading ? <CircularProgress size={20} /> : null}
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Container maxWidth="md" className="min-h-screen py-8">
+        <Box className="text-center mb-8">
+          <Typography
+            variant="h4"
+            component="h1"
+            className="mb-2 text-gray-800"
+            gutterBottom
           >
-            {loading ? '处理中...' : 'AI 改写'}
-          </Button>
-          
-          <Button
-            variant="outlined"
-            onClick={handleClear}
-            disabled={loading}
-          >
-            清空
-          </Button>
-        </Box>
-      </Paper>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      {rewrittenText && (
-        <Paper elevation={3} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            改写结果
+            AI 文本编辑器
           </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={6}
-            variant="outlined"
-            value={rewrittenText}
-            InputProps={{
-              readOnly: true,
-            }}
-            sx={{ mb: 2 }}
-          />
-          
-          <Button
-            variant="outlined"
-            onClick={() => navigator.clipboard.writeText(rewrittenText)}
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            className="text-gray-600"
           >
-            复制结果
-          </Button>
-        </Paper>
-      )}
+            选中文本，让 AI 帮你改写内容
+          </Typography>
+        </Box>
 
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          💡 提示：选中文本后点击"AI 改写"按钮，系统将调用 GitHub Actions 处理你的请求
-        </Typography>
-      </Box>
-    </Container>
+        <Paper
+          elevation={3}
+          className="p-6 mb-6"
+        >
+          <Box className="mb-4">
+            <TextField
+              inputRef={textareaRef}
+              multiline
+              rows={12}
+              fullWidth
+              variant="outlined"
+              value={text}
+              onChange={handleTextChange}
+              onSelect={handleSelect}
+              placeholder="在这里输入或粘贴文本，选中要改写的部分后点击 AI 按钮..."
+              className="font-mono"
+              InputProps={{
+                className: 'text-sm leading-relaxed',
+              }}
+            />
+          </Box>
+
+          <Box className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <Box className="flex items-center gap-2">
+              {hasSelection && (
+                <Chip
+                  label={`已选中 ${selectedText.length} 个字符`}
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+            </Box>
+
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleAIClick}
+              disabled={isLoading || !hasSelection}
+              startIcon={isLoading ? <CircularProgress size={20} /> : <AutoAwesome />}
+              className="min-w-[140px]"
+            >
+              {isLoading ? 'AI 处理中...' : 'AI 改写'}
+            </Button>
+          </Box>
+        </Paper>
+
+        {error && (
+          <Alert
+            severity="error"
+            className="mb-4"
+            onClose={() => setError(null)}
+          >
+            {error}
+          </Alert>
+        )}
+
+        <Paper
+          elevation={1}
+          className="p-6 bg-blue-50 border-l-4 border-blue-500"
+        >
+          <Typography
+            variant="h6"
+            component="h2"
+            className="mb-3 text-blue-800"
+          >
+            使用说明
+          </Typography>
+          <Stack spacing={1}>
+            <Box className="flex items-start gap-2">
+              <Chip label="1" size="small" color="primary" />
+              <Typography variant="body2" className="text-gray-700">
+                在文本框中输入或粘贴文本
+              </Typography>
+            </Box>
+            <Box className="flex items-start gap-2">
+              <Chip label="2" size="small" color="primary" />
+              <Typography variant="body2" className="text-gray-700">
+                选中要改写的文本段落
+              </Typography>
+            </Box>
+            <Box className="flex items-start gap-2">
+              <Chip label="3" size="small" color="primary" />
+              <Typography variant="body2" className="text-gray-700">
+                点击"AI 改写"按钮
+              </Typography>
+            </Box>
+            <Box className="flex items-start gap-2">
+              <Chip label="4" size="small" color="primary" />
+              <Typography variant="body2" className="text-gray-700">
+                AI 将自动改写选中的文本
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+      </Container>
+    </ThemeProvider>
   );
 }
 
