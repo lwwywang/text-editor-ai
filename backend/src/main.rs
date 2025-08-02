@@ -110,7 +110,8 @@ async fn rewrite_text(req: web::Json<RewriteRequest>) -> Result<HttpResponse> {
                                             req.text.clone() // 兜底：返回原文
                                         } else {
                                             println!("Gemini returned text: '{}'", text);
-                                            text.to_string()
+                                            // 去除首尾空白字符，避免多余的换行
+                                            text.trim().to_string()
                                         };
                                         return Ok(HttpResponse::Ok().json(RewriteResponse {
                                             rewritten,
