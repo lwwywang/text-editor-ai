@@ -93,8 +93,28 @@ function AppContent() {
       const data = await response.json();
       const rewrittenText = data.rewritten || data.result || data.rewritten_text || selectedText;
 
-      // 替换选中的文本
-      const newText = text.substring(0, start) + rewrittenText + text.substring(end);
+      // 替换选中的文本，确保不会产生多余的换行
+      const beforeText = text.substring(0, start);
+      const afterText = text.substring(end);
+      
+      // 检查前后文本是否以换行符结尾/开头，避免重复换行
+      const beforeEndsWithNewline = beforeText.endsWith('\n');
+      const afterStartsWithNewline = afterText.startsWith('\n');
+      const rewrittenTrimmed = rewrittenText.trim();
+      
+      let newText = beforeText;
+      if (!beforeEndsWithNewline && !afterStartsWithNewline && rewrittenTrimmed) {
+        // 如果前后都没有换行符，且重写文本不为空，直接添加
+        newText += rewrittenTrimmed;
+      } else if (beforeEndsWithNewline && afterStartsWithNewline) {
+        // 如果前后都有换行符，只添加重写文本，不添加额外换行
+        newText += rewrittenTrimmed;
+      } else {
+        // 其他情况，添加重写文本
+        newText += rewrittenTrimmed;
+      }
+      newText += afterText;
+      
       setText(newText);
 
       // 重新设置光标位置
